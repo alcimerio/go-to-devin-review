@@ -26,6 +26,9 @@ When the active tab is a GitHub pull request, click the extension icon to open a
 
 - **Open current** — opens the active pull request in Devin Review.
 - **Open all and group** — organizes every open GitHub pull request with its matching Devin Review tab.
+- **Clean up reviews** — previews and removes stale or duplicate Devin Review tabs, and organizes existing pairs that are still ungrouped.
+
+### Open all and group
 
 `Open all and group` is idempotent:
 
@@ -38,7 +41,17 @@ When the active tab is a GitHub pull request, click the extension icon to open a
 
 The bulk action scans PRs across browser windows. When an existing ungrouped Devin Review tab is in another window, it may be moved next to its GitHub PR so the pair can be grouped.
 
-The first time you use **Open all and group**, the browser asks for optional tab access. This permission is used only to recognize already-open Devin Review tabs and avoid duplicates.
+### Clean up reviews
+
+Cleanup is deliberately conservative. It only acts on Devin Review tabs that match the configured Review base URL.
+
+Before anything is closed, the popup shows a preview with counts for:
+
+- **Orphaned reviews** — a Devin Review is open, but no corresponding GitHub PR tab is open.
+- **Duplicate reviews** — more than one Devin Review is open for the same GitHub PR. One is kept and the extras are closed.
+- **Pairs to organize** — a GitHub PR and its Devin Review are both open but can still be grouped safely.
+
+Cleanup never closes GitHub PR tabs and never creates a missing Devin Review. If the GitHub PR and Devin Review are already in conflicting tab groups, the extension leaves them untouched.
 
 ## Configuration
 
@@ -47,6 +60,8 @@ The extension does not ship with a Devin Review host configured.
 Open the extension settings and set **Review base URL** to the HTTPS base URL for your Devin Review instance. Include the `/review` path when it is part of your instance URL. The value is stored locally in the browser extension profile using the WebExtension storage API.
 
 If you use an action before configuring a Review base URL, the settings page opens automatically.
+
+The extension requests the `tabs` permission because the bulk and cleanup actions need to read open-tab URLs to identify GitHub PRs and matching Devin Review tabs.
 
 ## Firefox
 
