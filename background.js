@@ -1,5 +1,6 @@
 const GITHUB_PR_PATTERN = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:[/?#].*)?$/;
 const REVIEW_BASE_URL_KEY = "reviewBaseUrl";
+const LOG_PREFIX = "[go-to-devin-review]";
 
 function isGitHubPullRequest(url) {
   return typeof url === "string" && GITHUB_PR_PATTERN.test(url);
@@ -23,6 +24,10 @@ function normalizeReviewBaseUrl(value) {
   }
 }
 
+function elapsedMs(startedAt) {
+  return `${(performance.now() - startedAt).toFixed(1)}ms`;
+}
+
 async function getReviewBaseUrl() {
   const stored = await chrome.storage.local.get(REVIEW_BASE_URL_KEY);
   return normalizeReviewBaseUrl(stored[REVIEW_BASE_URL_KEY]);
@@ -37,14 +42,22 @@ async function updateAction(tabId, url) {
   await chrome.action.disable(tabId);
 }
 
-async function initializeActionState() {
+async function initializeActiveTab() {
   await chrome.action.disable();
 
-  const tabs = await chrome.tabs.query({ url: "https://github.com/*" });
-  await Promise.all(tabs.map((tab) => updateAction(tab.id, tab.url)));
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id !== undefined) {
+    await updateAction(tab.id, tab.url);
+  }
 }
 
-void initializeActionState();
+chrome.runtime.onInstalled.addListener(() => {
+  void initializeActiveTab();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  void initializeActiveTab();
+});
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const url = changeInfo.url ?? tab.url;
@@ -57,13 +70,20 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
 });
 
 chrome.action.onClicked.addListener(async (tab) => {
+  const clickStartedAt = performance.now();
+  console.debug(`${LOG_PREFIX} action click received`);
+
   if (!tab.url) return;
 
   const match = tab.url.match(GITHUB_PR_PATTERN);
   if (!match) return;
 
+  const storageStartedAt = performance.now();
   const reviewBaseUrl = await getReviewBaseUrl();
+  console.debug(`${LOG_PREFIX} storage.local.get completed in ${elapsedMs(storageStartedAt)}`);
+
   if (!reviewBaseUrl) {
+    console.debug(`${LOG_PREFIX} opening options page after ${elapsedMs(clickStartedAt)}`);
     await chrome.runtime.openOptionsPage();
     return;
   }
@@ -71,5 +91,10 @@ chrome.action.onClicked.addListener(async (tab) => {
   const [, owner, repo, pullNumber] = match;
   const targetUrl = `${reviewBaseUrl}/${owner}/${repo}/pull/${pullNumber}`;
 
+  const createStartedAt = performance.now();
+  console.debug(`${LOG_PREFIX} tabs.create called after ${elapsedMs(clickStartedAt)}`);
   await chrome.tabs.create({ url: targetUrl });
+  console.debug(
+    `${LOG_PREFIX} tabs.create resolved in ${elapsedMs(createStartedAt)} (${elapsedMs(clickStartedAt)} total)`,
+  );
 });

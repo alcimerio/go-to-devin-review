@@ -26,7 +26,7 @@ The Review page opens in a new tab.
 
 The extension does not ship with a Devin Review host configured.
 
-Open the extension settings and set **Review base URL** to the HTTPS base URL for your Devin Review instance. The value is stored locally in the browser extension profile using the WebExtension storage API.
+Open the extension settings and set **Review base URL** to the HTTPS base URL for your Devin Review instance. Include the `/review` path when it is part of your instance URL. The value is stored locally in the browser extension profile using the WebExtension storage API.
 
 If you click the extension on a GitHub pull request before configuring a Review base URL, the settings page opens automatically.
 
@@ -53,6 +53,26 @@ https://github.com/<owner>/<repo>/pull/<number>
 Clicking the extension opens the equivalent Review URL in a new tab.
 
 > Temporary add-ons loaded through `about:debugging` are removed when Firefox restarts.
+
+### Diagnose a slow click
+
+The background script logs timing information without logging the configured Review base URL.
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Find **Go to Devin Review** and click **Inspect**.
+3. Open the Console.
+4. Click the extension from a GitHub pull request.
+
+You should see timing entries for:
+
+```text
+action click received
+storage.local.get completed
+tabs.create called
+tabs.create resolved
+```
+
+This makes it possible to distinguish time spent waking/running the extension from time spent loading the Devin page itself.
 
 ## Chrome / Chromium
 
