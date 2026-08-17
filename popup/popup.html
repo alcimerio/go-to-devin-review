@@ -8,21 +8,58 @@
   </head>
   <body>
     <main class="menu">
-      <button class="menu-item" id="open-current" type="button">
-        <span class="icon" aria-hidden="true">↗</span>
-        <span class="copy">
-          <strong>Open current</strong>
-          <small>Open this PR in Devin Review</small>
-        </span>
-      </button>
+      <div id="main-actions">
+        <button class="menu-item" id="open-current" type="button">
+          <span class="icon" aria-hidden="true">↗</span>
+          <span class="copy">
+            <strong>Open current</strong>
+            <small>Open this PR in Devin Review</small>
+          </span>
+        </button>
 
-      <button class="menu-item" id="open-all" type="button">
-        <span class="icon" aria-hidden="true">▦</span>
-        <span class="copy">
-          <strong>Open all and group</strong>
-          <small>Reuse open reviews and organize PRs</small>
-        </span>
-      </button>
+        <button class="menu-item" id="open-all" type="button">
+          <span class="icon" aria-hidden="true">▦</span>
+          <span class="copy">
+            <strong>Open all and group</strong>
+            <small>Reuse open reviews and organize PRs</small>
+          </span>
+        </button>
+
+        <button class="menu-item" id="cleanup-reviews" type="button">
+          <span class="icon" aria-hidden="true">⌫</span>
+          <span class="copy">
+            <strong>Clean up reviews</strong>
+            <small>Remove orphaned and duplicate reviews</small>
+          </span>
+        </button>
+      </div>
+
+      <section class="cleanup-panel" id="cleanup-panel" hidden aria-labelledby="cleanup-title">
+        <div class="cleanup-heading">
+          <strong id="cleanup-title">Clean up reviews</strong>
+          <small>Review what will change before anything is closed.</small>
+        </div>
+
+        <div class="cleanup-summary">
+          <div class="cleanup-row">
+            <span>Orphaned reviews</span>
+            <strong id="cleanup-orphans">0</strong>
+          </div>
+          <div class="cleanup-row">
+            <span>Duplicate reviews</span>
+            <strong id="cleanup-duplicates">0</strong>
+          </div>
+          <div class="cleanup-row">
+            <span>Pairs to organize</span>
+            <strong id="cleanup-groups">0</strong>
+          </div>
+        </div>
+
+        <div class="cleanup-actions">
+          <button class="secondary-button" id="cleanup-cancel" type="button">Cancel</button>
+          <button class="primary-button" id="cleanup-confirm" type="button">Clean up</button>
+        </div>
+      </section>
 
       <div class="footer">
         <span id="status" role="status" aria-live="polite"></span>
