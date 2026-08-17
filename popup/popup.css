@@ -5,7 +5,7 @@
 
 body {
   margin: 0;
-  min-width: 300px;
+  min-width: 320px;
   background: Canvas;
   color: CanvasText;
 }
@@ -55,14 +55,84 @@ body {
   gap: 2px;
 }
 
-.copy strong {
+.copy strong,
+.cleanup-heading strong {
   font-size: 13px;
   font-weight: 650;
 }
 
-.copy small {
+.copy small,
+.cleanup-heading small {
   font-size: 11px;
   opacity: 0.62;
+}
+
+.cleanup-panel {
+  padding: 10px 8px 6px;
+}
+
+.cleanup-heading {
+  display: grid;
+  gap: 4px;
+  padding: 2px 4px 12px;
+}
+
+.cleanup-summary {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, CanvasText 12%, transparent);
+  border-radius: 10px;
+}
+
+.cleanup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.cleanup-row + .cleanup-row {
+  border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.cleanup-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.cleanup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.secondary-button,
+.primary-button {
+  border-radius: 8px;
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.secondary-button {
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  background: transparent;
+  color: inherit;
+}
+
+.primary-button {
+  border: 0;
+  background: CanvasText;
+  color: Canvas;
+  font-weight: 650;
+}
+
+.secondary-button:disabled,
+.primary-button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .footer {
