@@ -28,48 +28,53 @@ function elapsedMs(startedAt) {
   return `${(performance.now() - startedAt).toFixed(1)}ms`;
 }
 
-async function getReviewBaseUrl() {
-  const stored = await chrome.storage.local.get(REVIEW_BASE_URL_KEY);
-  return normalizeReviewBaseUrl(stored[REVIEW_BASE_URL_KEY]);
+function logRuntimeError(context) {
+  if (chrome.runtime.lastError) {
+    console.error(`${LOG_PREFIX} ${context}: ${chrome.runtime.lastError.message}`);
+    return true;
+  }
+
+  return false;
 }
 
-async function updateAction(tabId, url) {
+function updateAction(tabId, url) {
+  if (tabId === undefined) return;
+
   if (isGitHubPullRequest(url)) {
-    await chrome.action.enable(tabId);
+    chrome.action.enable(tabId);
     return;
   }
 
-  await chrome.action.disable(tabId);
+  chrome.action.disable(tabId);
 }
 
-async function initializeActiveTab() {
-  await chrome.action.disable();
+function initializeActiveTab() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (logRuntimeError("tabs.query failed")) return;
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id !== undefined) {
-    await updateAction(tab.id, tab.url);
-  }
+    const [tab] = tabs;
+    if (tab?.id !== undefined) {
+      updateAction(tab.id, tab.url);
+    }
+  });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  void initializeActiveTab();
-});
-
-chrome.runtime.onStartup.addListener(() => {
-  void initializeActiveTab();
-});
+// Run on every background load, including Firefox's Reload button.
+initializeActiveTab();
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const url = changeInfo.url ?? tab.url;
-  void updateAction(tabId, url);
+  updateAction(tabId, url);
 });
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  const tab = await chrome.tabs.get(tabId);
-  await updateAction(tabId, tab.url);
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => {
+    if (logRuntimeError("tabs.get failed")) return;
+    updateAction(tabId, tab.url);
+  });
 });
 
-chrome.action.onClicked.addListener(async (tab) => {
+chrome.action.onClicked.addListener((tab) => {
   const clickStartedAt = performance.now();
   console.debug(`${LOG_PREFIX} action click received`);
 
@@ -79,22 +84,29 @@ chrome.action.onClicked.addListener(async (tab) => {
   if (!match) return;
 
   const storageStartedAt = performance.now();
-  const reviewBaseUrl = await getReviewBaseUrl();
-  console.debug(`${LOG_PREFIX} storage.local.get completed in ${elapsedMs(storageStartedAt)}`);
+  chrome.storage.local.get(REVIEW_BASE_URL_KEY, (stored) => {
+    if (logRuntimeError("storage.local.get failed")) return;
 
-  if (!reviewBaseUrl) {
-    console.debug(`${LOG_PREFIX} opening options page after ${elapsedMs(clickStartedAt)}`);
-    await chrome.runtime.openOptionsPage();
-    return;
-  }
+    console.debug(`${LOG_PREFIX} storage.local.get completed in ${elapsedMs(storageStartedAt)}`);
 
-  const [, owner, repo, pullNumber] = match;
-  const targetUrl = `${reviewBaseUrl}/${owner}/${repo}/pull/${pullNumber}`;
+    const reviewBaseUrl = normalizeReviewBaseUrl(stored[REVIEW_BASE_URL_KEY]);
+    if (!reviewBaseUrl) {
+      console.debug(`${LOG_PREFIX} opening options page after ${elapsedMs(clickStartedAt)}`);
+      chrome.runtime.openOptionsPage();
+      return;
+    }
 
-  const createStartedAt = performance.now();
-  console.debug(`${LOG_PREFIX} tabs.create called after ${elapsedMs(clickStartedAt)}`);
-  await chrome.tabs.create({ url: targetUrl });
-  console.debug(
-    `${LOG_PREFIX} tabs.create resolved in ${elapsedMs(createStartedAt)} (${elapsedMs(clickStartedAt)} total)`,
-  );
+    const [, owner, repo, pullNumber] = match;
+    const targetUrl = `${reviewBaseUrl}/${owner}/${repo}/pull/${pullNumber}`;
+    const createStartedAt = performance.now();
+
+    console.debug(`${LOG_PREFIX} tabs.create called after ${elapsedMs(clickStartedAt)}`);
+    chrome.tabs.create({ url: targetUrl }, () => {
+      if (logRuntimeError("tabs.create failed")) return;
+
+      console.debug(
+        `${LOG_PREFIX} tabs.create resolved in ${elapsedMs(createStartedAt)} (${elapsedMs(clickStartedAt)} total)`,
+      );
+    });
+  });
 });
