@@ -2,15 +2,14 @@
   "manifest_version": 3,
   "name": "Go to Devin Review",
   "description": "Open GitHub pull requests in a configurable Devin Review instance.",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "icons": {
     "16": "icons/devin-16.png",
     "32": "icons/devin-32.png",
     "48": "icons/devin-48.png",
     "128": "icons/devin-128.png"
   },
-  "permissions": ["storage", "tabGroups"],
-  "optional_permissions": ["tabs"],
+  "permissions": ["storage", "tabGroups", "tabs"],
   "host_permissions": ["https://github.com/*"],
   "background": {
     "scripts": ["background.js"],
