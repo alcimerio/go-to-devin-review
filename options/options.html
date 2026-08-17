@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Go to Devin Review settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Go to Devin Review</h1>
+      <p class="description">
+        Configure the base URL used to open pull requests in Devin Review.
+      </p>
+
+      <form id="settings-form">
+        <label for="review-base-url">Review base URL</label>
+        <input
+          id="review-base-url"
+          name="reviewBaseUrl"
+          type="url"
+          inputmode="url"
+          autocomplete="url"
+          placeholder="https://your-devin-host.example/review"
+          required
+        />
+        <p class="hint">Use an HTTPS URL including the <code>/review</code> path if your instance requires it.</p>
+
+        <div class="actions">
+          <button type="submit">Save</button>
+          <span id="status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>
