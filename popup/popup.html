@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Go to Devin Review</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="menu">
+      <button class="menu-item" id="open-current" type="button">
+        <span class="icon" aria-hidden="true">↗</span>
+        <span class="copy">
+          <strong>Open current</strong>
+          <small>Open this PR in Devin Review</small>
+        </span>
+      </button>
+
+      <button class="menu-item" id="open-all" type="button">
+        <span class="icon" aria-hidden="true">▦</span>
+        <span class="copy">
+          <strong>Open all and group</strong>
+          <small>Pair every GitHub PR with its review</small>
+        </span>
+      </button>
+
+      <div class="footer">
+        <span id="status" role="status" aria-live="polite"></span>
+        <button class="settings" id="settings" type="button" aria-label="Open settings" title="Settings">⚙</button>
+      </div>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 # Go to Devin Review
 
-Tiny browser extension that opens the current GitHub pull request in a configurable Devin Review instance.
+Tiny browser extension that opens GitHub pull requests in a configurable Devin Review instance.
 
 Example:
 
@@ -20,7 +20,16 @@ opens:
 https://your-devin-host.example/review/example/project/pull/66
 ```
 
-The Review page opens in a new tab.
+## Actions
+
+When the active tab is a GitHub pull request, click the extension icon to open a small menu:
+
+- **Open current** — opens the active pull request in Devin Review.
+- **Open all and group** — finds every open GitHub pull request tab, opens its matching Devin Review tab, and creates a tab group for each `GitHub PR + Devin Review` pair.
+
+Each generated group is named after the repository and pull request number, for example `project #66`.
+
+The bulk action scans GitHub PR tabs across browser windows. A Devin Review tab is created in the same window as its GitHub PR before the pair is grouped.
 
 ## Configuration
 
@@ -28,11 +37,11 @@ The extension does not ship with a Devin Review host configured.
 
 Open the extension settings and set **Review base URL** to the HTTPS base URL for your Devin Review instance. Include the `/review` path when it is part of your instance URL. The value is stored locally in the browser extension profile using the WebExtension storage API.
 
-If you click the extension on a GitHub pull request before configuring a Review base URL, the settings page opens automatically.
+If you use an action before configuring a Review base URL, the settings page opens automatically.
 
 ## Firefox
 
-This extension is Firefox-first and uses WebExtension APIs that are also compatible with Chromium-based browsers.
+This extension is Firefox-first and uses WebExtension APIs that are also compatible with modern Chromium-based browsers.
 
 ### Install for local development
 
@@ -50,33 +59,13 @@ The extension action is enabled only when the active tab is a GitHub pull reques
 https://github.com/<owner>/<repo>/pull/<number>
 ```
 
-Clicking the extension opens the equivalent Review URL in a new tab.
-
 > Temporary add-ons loaded through `about:debugging` are removed when Firefox restarts.
 
-### Diagnose a slow click
-
-The background script logs timing information without logging the configured Review base URL.
-
-1. Open `about:debugging#/runtime/this-firefox`.
-2. Find **Go to Devin Review** and click **Inspect**.
-3. Open the Console.
-4. Click the extension from a GitHub pull request.
-
-You should see timing entries for:
-
-```text
-action click received
-storage.local.get completed
-tabs.create called
-tabs.create resolved
-```
-
-This makes it possible to distinguish time spent waking/running the extension from time spent loading the Devin page itself.
+For local changes, `git pull` followed by **Reload** in `about:debugging` is enough; you do not need to reinstall the temporary add-on.
 
 ## Chrome / Chromium
 
-The same source also targets Chromium Manifest V3. Load the repository as an unpacked extension from `chrome://extensions` with **Developer mode** enabled.
+Load the repository as an unpacked extension from `chrome://extensions` with **Developer mode** enabled.
 
 ## Project structure
 
@@ -89,6 +78,10 @@ The same source also targets Chromium Manifest V3. Load the repository as an unp
 │   ├── options.css
 │   ├── options.html
 │   └── options.js
+├── popup/
+│   ├── popup.css
+│   ├── popup.html
+│   └── popup.js
 └── README.md
 ```
 

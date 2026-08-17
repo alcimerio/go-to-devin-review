@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Go to Devin Review",
-  "description": "Open the current GitHub pull request in a configurable Devin Review instance.",
-  "version": "1.1.2",
+  "description": "Open GitHub pull requests in a configurable Devin Review instance.",
+  "version": "1.2.0",
   "icons": {
     "16": "icons/devin-16.png",
     "32": "icons/devin-32.png",
     "48": "icons/devin-48.png",
     "128": "icons/devin-128.png"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabGroups"],
   "host_permissions": ["https://github.com/*"],
   "background": {
     "scripts": ["background.js"],
@@ -21,6 +21,7 @@
   },
   "action": {
     "default_title": "Open in Devin Review",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/devin-16.png",
       "32": "icons/devin-32.png",
