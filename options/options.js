@@ -20,12 +20,18 @@ function normalizeReviewBaseUrl(value) {
   }
 }
 
-async function restoreSettings() {
-  const stored = await chrome.storage.local.get(REVIEW_BASE_URL_KEY);
-  input.value = stored[REVIEW_BASE_URL_KEY] ?? "";
+function restoreSettings() {
+  chrome.storage.local.get(REVIEW_BASE_URL_KEY, (stored) => {
+    if (chrome.runtime.lastError) {
+      status.textContent = `Could not load settings: ${chrome.runtime.lastError.message}`;
+      return;
+    }
+
+    input.value = stored[REVIEW_BASE_URL_KEY] ?? "";
+  });
 }
 
-form.addEventListener("submit", async (event) => {
+form.addEventListener("submit", (event) => {
   event.preventDefault();
 
   const reviewBaseUrl = normalizeReviewBaseUrl(input.value);
@@ -35,13 +41,19 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  await chrome.storage.local.set({ [REVIEW_BASE_URL_KEY]: reviewBaseUrl });
-  input.value = reviewBaseUrl;
-  status.textContent = "Saved.";
+  chrome.storage.local.set({ [REVIEW_BASE_URL_KEY]: reviewBaseUrl }, () => {
+    if (chrome.runtime.lastError) {
+      status.textContent = `Could not save settings: ${chrome.runtime.lastError.message}`;
+      return;
+    }
 
-  window.setTimeout(() => {
-    status.textContent = "";
-  }, 2000);
+    input.value = reviewBaseUrl;
+    status.textContent = "Saved.";
+
+    window.setTimeout(() => {
+      status.textContent = "";
+    }, 2000);
+  });
 });
 
-void restoreSettings();
+restoreSettings();
