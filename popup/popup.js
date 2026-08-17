@@ -1,10 +1,17 @@
 const GITHUB_PR_PATTERN = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:[/?#].*)?$/;
 const REVIEW_BASE_URL_KEY = "reviewBaseUrl";
-const TABS_PERMISSION = { permissions: ["tabs"] };
 const TAB_GROUP_ID_NONE = -1;
 
+const mainActions = document.querySelector("#main-actions");
 const openCurrentButton = document.querySelector("#open-current");
 const openAllButton = document.querySelector("#open-all");
+const cleanupButton = document.querySelector("#cleanup-reviews");
+const cleanupPanel = document.querySelector("#cleanup-panel");
+const cleanupOrphans = document.querySelector("#cleanup-orphans");
+const cleanupDuplicates = document.querySelector("#cleanup-duplicates");
+const cleanupGroups = document.querySelector("#cleanup-groups");
+const cleanupCancelButton = document.querySelector("#cleanup-cancel");
+const cleanupConfirmButton = document.querySelector("#cleanup-confirm");
 const settingsButton = document.querySelector("#settings");
 const status = document.querySelector("#status");
 
@@ -43,6 +50,12 @@ function moveTab(tabId, moveProperties) {
   return chromeCall(chrome.tabs.move, chrome.tabs, tabId, moveProperties);
 }
 
+function removeTabs(tabIds) {
+  if (tabIds.length === 0) return Promise.resolve();
+  if (firefoxApi) return firefoxApi.tabs.remove(tabIds);
+  return chromeCall(chrome.tabs.remove, chrome.tabs, tabIds);
+}
+
 function groupTabs(groupOptions) {
   if (firefoxApi) return firefoxApi.tabs.group(groupOptions);
   return chromeCall(chrome.tabs.group, chrome.tabs, groupOptions);
@@ -51,16 +64,6 @@ function groupTabs(groupOptions) {
 function updateTabGroup(groupId, updateProperties) {
   if (firefoxApi) return firefoxApi.tabGroups.update(groupId, updateProperties);
   return chromeCall(chrome.tabGroups.update, chrome.tabGroups, groupId, updateProperties);
-}
-
-function containsPermissions(permissions) {
-  if (firefoxApi) return firefoxApi.permissions.contains(permissions);
-  return chromeCall(chrome.permissions.contains, chrome.permissions, permissions);
-}
-
-function requestPermissions(permissions) {
-  if (firefoxApi) return firefoxApi.permissions.request(permissions);
-  return chromeCall(chrome.permissions.request, chrome.permissions, permissions);
 }
 
 function openOptionsPage() {
@@ -111,6 +114,30 @@ function comparableUrl(value) {
   }
 }
 
+function reviewKeyFromUrl(reviewBaseUrl, value) {
+  if (typeof value !== "string") return null;
+
+  try {
+    const base = new URL(reviewBaseUrl);
+    const url = new URL(value);
+    if (url.origin !== base.origin) return null;
+
+    const basePath = base.pathname.replace(/\/+$/, "");
+    const pathname = url.pathname.replace(/\/+$/, "");
+    const prefix = `${basePath}/`;
+    if (!pathname.startsWith(prefix)) return null;
+
+    const suffix = pathname.slice(basePath.length);
+    if (!/^\/[^/]+\/[^/]+\/pull\/\d+$/.test(suffix)) return null;
+
+    url.search = "";
+    url.hash = "";
+    return comparableUrl(`${url.origin}${basePath}${suffix}`);
+  } catch {
+    return null;
+  }
+}
+
 async function getReviewBaseUrl() {
   const stored = await storageGet(REVIEW_BASE_URL_KEY);
   return normalizeReviewBaseUrl(stored[REVIEW_BASE_URL_KEY]);
@@ -131,6 +158,9 @@ function isSameGroup(left, right) {
 function setBusy(busy) {
   openCurrentButton.disabled = busy;
   openAllButton.disabled = busy;
+  cleanupButton.disabled = busy;
+  cleanupCancelButton.disabled = busy;
+  cleanupConfirmButton.disabled = busy;
   settingsButton.disabled = busy;
 }
 
@@ -141,11 +171,6 @@ async function requireReviewBaseUrl() {
   await openOptionsPage();
   window.close();
   return null;
-}
-
-async function ensureTabsPermission() {
-  if (await containsPermissions(TABS_PERMISSION)) return true;
-  return requestPermissions(TABS_PERMISSION);
 }
 
 function pickPullRequestTabs(tabs, reviewBaseUrl) {
@@ -199,6 +224,23 @@ function indexReviewTabs(tabs, reviewKeys) {
   return reviewsByKey;
 }
 
+function indexConfiguredReviewTabs(tabs, reviewBaseUrl) {
+  const reviewsByKey = new Map();
+
+  for (const tab of tabs) {
+    if (tab.id === undefined) continue;
+
+    const key = reviewKeyFromUrl(reviewBaseUrl, tab.url);
+    if (!key) continue;
+
+    const existing = reviewsByKey.get(key) ?? [];
+    existing.push(tab);
+    reviewsByKey.set(key, existing);
+  }
+
+  return reviewsByKey;
+}
+
 function pickReviewTab(candidates, pullRequestTab) {
   if (!candidates?.length) return null;
 
@@ -227,22 +269,36 @@ async function createPairGroup(pullRequestTab, reviewTab, pullRequest) {
   });
 }
 
-async function ensurePairGrouped(pullRequestTab, reviewTab, pullRequest, groupingAvailable) {
+function classifyPairGrouping(pullRequestTab, reviewTab, groupingAvailable) {
   if (!groupingAvailable || pullRequestTab.id === undefined || reviewTab.id === undefined) {
     return "unavailable";
   }
 
-  if (isSameGroup(pullRequestTab, reviewTab)) {
-    return "already";
+  if (isSameGroup(pullRequestTab, reviewTab)) return "already";
+
+  if (reviewTab.windowId !== pullRequestTab.windowId && isGrouped(reviewTab)) {
+    return "conflict";
   }
+
+  if (
+    reviewTab.windowId === pullRequestTab.windowId &&
+    isGrouped(pullRequestTab) &&
+    isGrouped(reviewTab) &&
+    pullRequestTab.groupId !== reviewTab.groupId
+  ) {
+    return "conflict";
+  }
+
+  return "groupable";
+}
+
+async function ensurePairGrouped(pullRequestTab, reviewTab, pullRequest, groupingAvailable) {
+  const classification = classifyPairGrouping(pullRequestTab, reviewTab, groupingAvailable);
+  if (classification !== "groupable") return classification;
 
   let currentReviewTab = reviewTab;
 
   if (currentReviewTab.windowId !== pullRequestTab.windowId) {
-    if (isGrouped(currentReviewTab)) {
-      return "conflict";
-    }
-
     currentReviewTab = normalizeMovedTab(
       await moveTab(currentReviewTab.id, {
         windowId: pullRequestTab.windowId,
@@ -251,14 +307,7 @@ async function ensurePairGrouped(pullRequestTab, reviewTab, pullRequest, groupin
     );
 
     if (!currentReviewTab) return "conflict";
-
-    if (isSameGroup(pullRequestTab, currentReviewTab)) {
-      return "grouped";
-    }
-  }
-
-  if (isGrouped(pullRequestTab) && isGrouped(currentReviewTab)) {
-    return pullRequestTab.groupId === currentReviewTab.groupId ? "already" : "conflict";
+    if (isSameGroup(pullRequestTab, currentReviewTab)) return "grouped";
   }
 
   if (isGrouped(pullRequestTab)) {
@@ -298,6 +347,112 @@ function summarizeBulkResult({ opened, reused, grouped, alreadyPaired, conflicts
   return parts.join(" · ");
 }
 
+function buildCleanupPlan(tabs, reviewBaseUrl, groupingAvailable) {
+  const pullRequestEntries = pickPullRequestTabs(tabs, reviewBaseUrl).entries;
+  const pullRequestsByKey = new Map(pullRequestEntries.map((entry) => [entry.reviewKey, entry]));
+  const reviewsByKey = indexConfiguredReviewTabs(tabs, reviewBaseUrl);
+
+  const orphanedTabs = [];
+  const duplicateTabs = [];
+  const pairsToGroup = [];
+  let alreadyPaired = 0;
+  let conflicts = 0;
+
+  for (const [reviewKey, reviewTabs] of reviewsByKey) {
+    const pullRequestEntry = pullRequestsByKey.get(reviewKey);
+    if (!pullRequestEntry) {
+      orphanedTabs.push(...reviewTabs);
+      continue;
+    }
+
+    const keeper = pickReviewTab(reviewTabs, pullRequestEntry.tab);
+    if (!keeper) continue;
+
+    duplicateTabs.push(...reviewTabs.filter((tab) => tab.id !== keeper.id));
+
+    const classification = classifyPairGrouping(pullRequestEntry.tab, keeper, groupingAvailable);
+    if (classification === "groupable") {
+      pairsToGroup.push({ pullRequestEntry, reviewTab: keeper });
+    } else if (classification === "already") {
+      alreadyPaired += 1;
+    } else if (classification === "conflict") {
+      conflicts += 1;
+    }
+  }
+
+  return {
+    orphanedTabs,
+    duplicateTabs,
+    pairsToGroup,
+    alreadyPaired,
+    conflicts,
+  };
+}
+
+function cleanupActionCount(plan) {
+  return plan.orphanedTabs.length + plan.duplicateTabs.length + plan.pairsToGroup.length;
+}
+
+function showCleanupPreview(plan) {
+  cleanupOrphans.textContent = String(plan.orphanedTabs.length);
+  cleanupDuplicates.textContent = String(plan.duplicateTabs.length);
+  cleanupGroups.textContent = String(plan.pairsToGroup.length);
+  mainActions.hidden = true;
+  cleanupPanel.hidden = false;
+}
+
+function hideCleanupPreview() {
+  cleanupPanel.hidden = true;
+  mainActions.hidden = false;
+}
+
+async function executeCleanup(reviewBaseUrl, groupingAvailable) {
+  const tabsBefore = await queryTabs({});
+  const planBefore = buildCleanupPlan(tabsBefore, reviewBaseUrl, groupingAvailable);
+  const tabIdsToClose = [...new Set([...planBefore.orphanedTabs, ...planBefore.duplicateTabs].map((tab) => tab.id))];
+
+  await removeTabs(tabIdsToClose);
+
+  const tabsAfter = tabIdsToClose.length > 0 ? await queryTabs({}) : tabsBefore;
+  const planAfter = buildCleanupPlan(tabsAfter, reviewBaseUrl, groupingAvailable);
+
+  let grouped = 0;
+  let conflicts = planAfter.conflicts;
+
+  for (const { pullRequestEntry, reviewTab } of planAfter.pairsToGroup) {
+    try {
+      const result = await ensurePairGrouped(
+        pullRequestEntry.tab,
+        reviewTab,
+        pullRequestEntry.pullRequest,
+        groupingAvailable,
+      );
+
+      if (result === "grouped") grouped += 1;
+      if (result === "conflict") conflicts += 1;
+    } catch (error) {
+      console.error("Could not organize cleanup pair", error);
+      conflicts += 1;
+    }
+  }
+
+  return {
+    orphanedClosed: planBefore.orphanedTabs.length,
+    duplicatesClosed: planBefore.duplicateTabs.length,
+    grouped,
+    conflicts,
+  };
+}
+
+function summarizeCleanupResult({ orphanedClosed, duplicatesClosed, grouped, conflicts }) {
+  const parts = [];
+  if (orphanedClosed > 0) parts.push(`${orphanedClosed} orphan${orphanedClosed === 1 ? "" : "s"} closed`);
+  if (duplicatesClosed > 0) parts.push(`${duplicatesClosed} duplicate${duplicatesClosed === 1 ? "" : "s"} closed`);
+  if (grouped > 0) parts.push(`${grouped} pair${grouped === 1 ? "" : "s"} organized`);
+  if (conflicts > 0) parts.push(`${conflicts} left untouched`);
+  return parts.length > 0 ? parts.join(" · ") : "Everything is already clean.";
+}
+
 openCurrentButton.addEventListener("click", async () => {
   setBusy(true);
   status.textContent = "Opening…";
@@ -333,12 +488,6 @@ openAllButton.addEventListener("click", async () => {
   status.textContent = "Checking tabs…";
 
   try {
-    const tabsPermissionGranted = await ensureTabsPermission();
-    if (!tabsPermissionGranted) {
-      status.textContent = "Tab access is required to avoid duplicates.";
-      return;
-    }
-
     const reviewBaseUrl = await requireReviewBaseUrl();
     if (!reviewBaseUrl) return;
 
@@ -399,6 +548,68 @@ openAllButton.addEventListener("click", async () => {
   } catch (error) {
     console.error(error);
     status.textContent = "Could not organize reviews.";
+  } finally {
+    setBusy(false);
+  }
+});
+
+cleanupButton.addEventListener("click", async () => {
+  setBusy(true);
+  status.textContent = "Scanning reviews…";
+
+  try {
+    const reviewBaseUrl = await requireReviewBaseUrl();
+    if (!reviewBaseUrl) return;
+
+    const tabs = await queryTabs({});
+    const groupingAvailable = Boolean(
+      (firefoxApi?.tabs.group && firefoxApi?.tabGroups?.update) ||
+        (!firefoxApi && chrome.tabs.group && chrome.tabGroups?.update),
+    );
+    const plan = buildCleanupPlan(tabs, reviewBaseUrl, groupingAvailable);
+
+    if (cleanupActionCount(plan) === 0) {
+      status.textContent =
+        plan.conflicts > 0
+          ? `Nothing safe to clean · ${plan.conflicts} pair${plan.conflicts === 1 ? "" : "s"} left untouched`
+          : "Everything is already clean.";
+      return;
+    }
+
+    status.textContent = "";
+    showCleanupPreview(plan);
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Could not scan reviews.";
+  } finally {
+    setBusy(false);
+  }
+});
+
+cleanupCancelButton.addEventListener("click", () => {
+  hideCleanupPreview();
+  status.textContent = "";
+});
+
+cleanupConfirmButton.addEventListener("click", async () => {
+  setBusy(true);
+  status.textContent = "Cleaning up…";
+
+  try {
+    const reviewBaseUrl = await requireReviewBaseUrl();
+    if (!reviewBaseUrl) return;
+
+    const groupingAvailable = Boolean(
+      (firefoxApi?.tabs.group && firefoxApi?.tabGroups?.update) ||
+        (!firefoxApi && chrome.tabs.group && chrome.tabGroups?.update),
+    );
+    const result = await executeCleanup(reviewBaseUrl, groupingAvailable);
+
+    hideCleanupPreview();
+    status.textContent = summarizeCleanupResult(result);
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Could not clean up reviews.";
   } finally {
     setBusy(false);
   }
