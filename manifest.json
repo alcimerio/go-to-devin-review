@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Go to Devin Review",
   "description": "Open GitHub pull requests in a configurable Devin Review instance.",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "icons": {
     "16": "icons/devin-16.png",
     "32": "icons/devin-32.png",
