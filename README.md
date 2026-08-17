@@ -25,11 +25,20 @@ https://your-devin-host.example/review/example/project/pull/66
 When the active tab is a GitHub pull request, click the extension icon to open a small menu:
 
 - **Open current** — opens the active pull request in Devin Review.
-- **Open all and group** — finds every open GitHub pull request tab, opens its matching Devin Review tab, and creates a tab group for each `GitHub PR + Devin Review` pair.
+- **Open all and group** — organizes every open GitHub pull request with its matching Devin Review tab.
 
-Each generated group is named after the repository and pull request number, for example `project #66`.
+`Open all and group` is idempotent:
 
-The bulk action scans GitHub PR tabs across browser windows. A Devin Review tab is created in the same window as its GitHub PR before the pair is grouped.
+- If a matching Devin Review tab is already open, it is reused instead of opening a duplicate.
+- If the GitHub PR and Devin Review tabs are already in the same group, nothing changes.
+- If one of the two tabs is already in a group, the ungrouped tab joins that existing group.
+- If both tabs are ungrouped, a new group is created and named after the repository and pull request number, for example `project #66`.
+- If both tabs are already in different groups, the extension leaves those groups untouched.
+- Duplicate GitHub tabs for the same pull request are skipped.
+
+The bulk action scans PRs across browser windows. When an existing ungrouped Devin Review tab is in another window, it may be moved next to its GitHub PR so the pair can be grouped.
+
+The first time you use **Open all and group**, the browser asks for optional tab access. This permission is used only to recognize already-open Devin Review tabs and avoid duplicates.
 
 ## Configuration
 
