@@ -69,6 +69,8 @@ The extension requests the `tabs` permission because the bulk and cleanup action
 
 This extension is Firefox-first and uses WebExtension APIs that are also compatible with modern Chromium-based browsers.
 
+Firefox 139 or newer is required because this extension uses Firefox tab groups.
+
 ### Install for local development
 
 1. Clone or download this repository.
@@ -89,14 +91,70 @@ https://github.com/<owner>/<repo>/pull/<number>
 
 For local changes, `git pull` followed by **Reload** in `about:debugging` is enough; you do not need to reinstall the temporary add-on.
 
+### Install permanently with a signed XPI
+
+Firefox requires normal end-user extensions to be signed by Mozilla. This repository is configured for an **unlisted** AMO signing flow, which produces a signed `.xpi` without publishing the extension in the Firefox Add-ons directory.
+
+The manifest includes a stable Firefox add-on ID and declares that the extension does not collect or transmit user data.
+
+#### 1. Install release tooling
+
+`web-ext` 10.x requires Node.js 22 or newer.
+
+```bash
+npm install
+```
+
+#### 2. Validate the extension
+
+```bash
+npm run firefox:lint
+```
+
+You can also create an unsigned package for inspection:
+
+```bash
+npm run firefox:build
+```
+
+Build artifacts are written to `web-ext-artifacts/` and are ignored by Git.
+
+#### 3. Create Mozilla Add-ons API credentials
+
+Create API credentials in the Mozilla Add-ons Developer Hub. You will receive a JWT issuer and JWT secret.
+
+Keep these credentials out of the repository. Export them locally:
+
+```bash
+export WEB_EXT_API_KEY="your-jwt-issuer"
+export WEB_EXT_API_SECRET="your-jwt-secret"
+```
+
+#### 4. Sign for self-distribution
+
+```bash
+npm run firefox:sign
+```
+
+The command submits the extension to Mozilla as an **unlisted** add-on and downloads the signed `.xpi` into `web-ext-artifacts/` when signing succeeds.
+
+#### 5. Install the signed XPI
+
+Open `about:addons` in Firefox, click the gear menu, choose **Install Add-on From File…**, and select the signed `.xpi`.
+
+Unlike a temporary add-on loaded through `about:debugging`, the signed extension remains installed after Firefox restarts.
+
 ## Chrome / Chromium
 
 Load the repository as an unpacked extension from `chrome://extensions` with **Developer mode** enabled.
+
+Chrome ignores the Firefox-specific `browser_specific_settings` section in the manifest.
 
 ## Project structure
 
 ```text
 .
+├── .gitignore
 ├── background.js
 ├── icons/
 ├── LICENSE
@@ -105,6 +163,7 @@ Load the repository as an unpacked extension from `chrome://extensions` with **D
 │   ├── options.css
 │   ├── options.html
 │   └── options.js
+├── package.json
 ├── popup/
 │   ├── popup.css
 │   ├── popup.html
@@ -112,4 +171,4 @@ Load the repository as an unpacked extension from `chrome://extensions` with **D
 └── README.md
 ```
 
-No build step or dependencies are required.
+No build step or runtime dependencies are required for the extension itself. `web-ext` is used only for development, packaging, linting, and Firefox signing.
