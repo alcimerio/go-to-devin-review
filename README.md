@@ -2,6 +2,8 @@
 
 Tiny browser extension that opens GitHub pull requests in a configurable Devin Review instance.
 
+> This is an unofficial community project and is not affiliated with or endorsed by Cognition.
+
 Example:
 
 ```text
@@ -97,6 +99,7 @@ Load the repository as an unpacked extension from `chrome://extensions` with **D
 .
 ├── background.js
 ├── icons/
+├── LICENSE
 ├── manifest.json
 ├── options/
 │   ├── options.css
