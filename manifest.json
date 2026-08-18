@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Go to Devin Review",
   "description": "Open GitHub pull requests in a configurable Devin Review instance.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "icons": {
     "16": "icons/devin-16.png",
     "32": "icons/devin-32.png",
@@ -26,6 +26,15 @@
       "16": "icons/devin-16.png",
       "32": "icons/devin-32.png",
       "48": "icons/devin-48.png"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "go-to-devin-review@alcimerio",
+      "strict_min_version": "139.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
