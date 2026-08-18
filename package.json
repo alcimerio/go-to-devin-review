@@ -1,7 +1,7 @@
 {
   "name": "go-to-devin-review",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Development tooling for the Go to Devin Review browser extension.",
   "scripts": {
     "firefox:lint": "web-ext lint",

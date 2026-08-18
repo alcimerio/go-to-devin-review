@@ -65,11 +65,21 @@ If you use an action before configuring a Review base URL, the settings page ope
 
 The extension requests the `tabs` permission because the bulk and cleanup actions need to read open-tab URLs to identify GitHub PRs and matching Devin Review tabs.
 
+## Privacy
+
+The extension reads GitHub pull request URLs from open tabs. When you ask it to open a review, it uses the GitHub PR path to navigate directly to the Review base URL you configured.
+
+The project itself has no backend, analytics, or telemetry. The only extension setting stored locally is the Review base URL.
+
+Because the PR path is transmitted to the user-configured review host as part of browser navigation, the Firefox manifest declares the required `browsingActivity` data collection permission for Mozilla's built-in data consent system.
+
+See [PRIVACY.md](./PRIVACY.md) for the full privacy policy.
+
 ## Firefox
 
 This extension is Firefox-first and uses WebExtension APIs that are also compatible with modern Chromium-based browsers.
 
-Firefox 139 or newer is required because this extension uses Firefox tab groups.
+Firefox 140 or newer is required for the distributable Firefox package. Tab grouping itself is available from Firefox 139, while Firefox 140 adds the built-in data collection consent metadata used by new AMO submissions.
 
 ### Install for local development
 
@@ -91,58 +101,33 @@ https://github.com/<owner>/<repo>/pull/<number>
 
 For local changes, `git pull` followed by **Reload** in `about:debugging` is enough; you do not need to reinstall the temporary add-on.
 
-### Install permanently with a signed XPI
-
-Firefox requires normal end-user extensions to be signed by Mozilla. This repository is configured for an **unlisted** AMO signing flow, which produces a signed `.xpi` without publishing the extension in the Firefox Add-ons directory.
-
-The manifest includes a stable Firefox add-on ID and declares that the extension does not collect or transmit user data.
-
-#### 1. Install release tooling
+### Build and validate
 
 `web-ext` 10.x requires Node.js 22 or newer.
 
 ```bash
 npm install
-```
-
-#### 2. Validate the extension
-
-```bash
 npm run firefox:lint
-```
-
-You can also create an unsigned package for inspection:
-
-```bash
 npm run firefox:build
 ```
 
 Build artifacts are written to `web-ext-artifacts/` and are ignored by Git.
 
-#### 3. Create Mozilla Add-ons API credentials
+### Install permanently with a self-distributed signed XPI
 
-Create API credentials in the Mozilla Add-ons Developer Hub. You will receive a JWT issuer and JWT secret.
-
-Keep these credentials out of the repository. Export them locally:
+For personal/self-distributed installation, create Mozilla Add-ons API credentials, keep them outside the repository, and export them locally:
 
 ```bash
 export WEB_EXT_API_KEY="your-jwt-issuer"
 export WEB_EXT_API_SECRET="your-jwt-secret"
-```
-
-#### 4. Sign for self-distribution
-
-```bash
 npm run firefox:sign
 ```
 
 The command submits the extension to Mozilla as an **unlisted** add-on and downloads the signed `.xpi` into `web-ext-artifacts/` when signing succeeds.
 
-#### 5. Install the signed XPI
+### Publish publicly on Firefox Add-ons
 
-Open `about:addons` in Firefox, click the gear menu, choose **Install Add-on From File…**, and select the signed `.xpi`.
-
-Unlike a temporary add-on loaded through `about:debugging`, the signed extension remains installed after Firefox restarts.
+For a public listing that anyone can discover and install from addons.mozilla.org, submit the built package through the Mozilla Add-ons Developer Hub as a **listed** add-on. The repository includes the stable Firefox extension ID, privacy policy, data collection declaration, and validation tooling needed for that flow.
 
 ## Chrome / Chromium
 
@@ -154,6 +139,7 @@ Chrome ignores the Firefox-specific `browser_specific_settings` section in the m
 
 ```text
 .
+├── .github/
 ├── .gitignore
 ├── background.js
 ├── icons/
@@ -168,6 +154,7 @@ Chrome ignores the Firefox-specific `browser_specific_settings` section in the m
 │   ├── popup.css
 │   ├── popup.html
 │   └── popup.js
+├── PRIVACY.md
 └── README.md
 ```
 
