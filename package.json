@@ -1,0 +1,20 @@
+{
+  "name": "go-to-devin-review",
+  "private": true,
+  "version": "1.4.1",
+  "description": "Development tooling for the Go to Devin Review browser extension.",
+  "scripts": {
+    "firefox:lint": "web-ext lint",
+    "firefox:build": "web-ext build --overwrite-dest",
+    "firefox:sign": "web-ext sign --channel=unlisted"
+  },
+  "devDependencies": {
+    "web-ext": "10.5.0"
+  },
+  "webExt": {
+    "ignoreFiles": [
+      "package.json",
+      "package-lock.json"
+    ]
+  }
+}
